@@ -3,8 +3,6 @@
 name: Integration Tests
 
 on:
-  schedule:
-    - cron: "37 14 * * *" # Run at 7:37 AM Pacific Time (14:37 UTC) every day
   workflow_dispatch: # Allows triggering the workflow manually in GitHub UI
 
 # If another scheduled run starts while this workflow is still running,
