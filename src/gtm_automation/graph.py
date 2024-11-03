@@ -12,11 +12,11 @@ from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
-from enrichment_agent import prompts
-from enrichment_agent.configuration import Configuration
-from enrichment_agent.state import InputState, OutputState, State
-from enrichment_agent.tools import scrape_website, search
-from enrichment_agent.utils import init_model
+from gtm_automation import prompts
+from gtm_automation.configuration import Configuration
+from gtm_automation.state import InputState, OutputState, State
+from gtm_automation.tools import scrape_website, search
+from gtm_automation.utils import init_model
 
 
 async def call_agent_model(

@@ -15,9 +15,9 @@ from langchain_core.tools import InjectedToolArg
 from langgraph.prebuilt import InjectedState
 from typing_extensions import Annotated
 
-from enrichment_agent.configuration import Configuration
-from enrichment_agent.state import State
-from enrichment_agent.utils import init_model
+from gtm_automation.configuration import Configuration
+from gtm_automation.state import State
+from gtm_automation.utils import init_model
 
 
 async def search(

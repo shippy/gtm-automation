@@ -1,13 +1,13 @@
 [project]
-name = "enrichment-agent"
-version = "0.0.1"
-description = "An agent that populates and enriches custom schemas"
+name = "gtm-automation"
+version = "0.2.0"
+description = "An agent that populates and enriches a GTM schema"
 authors = [
-    { name = "William Fu-Hinthorn", email = "13333726+hinthornw@users.noreply.github.com" },
+    { name = "Simon Podhajsky", email = "simon@podhajsky.net" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "langgraph>=0.2.19",
     "langchain-openai>=0.1.22",
@@ -26,10 +26,10 @@ requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["enrichment_agent"]
+packages = ["gtm_automation"]
 [tool.setuptools.package-dir]
-"enrichment_agent" = "src/enrichment_agent"
-"langgraph.templates.enrichment_agent" = "src/enrichment_agent"
+"gtm_automation" = "src/gtm_automation"
+"langgraph.templates.enrichment_agent" = "src/gtm_automation"
 
 
 [tool.setuptools.package-data]
