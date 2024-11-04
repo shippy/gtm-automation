@@ -1,6 +1,6 @@
 """Default prompts used in this project."""
 
-MAIN_PROMPT = """You are doing web research on behalf of a user. You are trying to figure out this information:
+MAIN_PROMPT = """You are doing web research on behalf of a startup that's entering the market. You are trying to figure out this information:
 
 <info>
 {info}
