@@ -16,6 +16,7 @@ dependencies = [
     "langchain-fireworks>=0.1.7",
     "python-dotenv>=1.0.1",
     "langchain-community>=0.2.13",
+    "langgraph-cli>=0.1.52",
 ]
 
 [project.optional-dependencies]
@@ -45,8 +46,8 @@ lint.select = [
     "T201",
     "UP",
 ]
-include = ["*.py", "*.pyi", "*.ipynb"]
 lint.ignore = ["UP006", "UP007", "UP035", "D417", "E501"]
+include = ["*.py", "*.pyi", "*.ipynb"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D", "UP"]
 "ntbk/*" = ["D", "UP", "T201"]
