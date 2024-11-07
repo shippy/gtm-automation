@@ -15,7 +15,8 @@ class Configuration:
     """The configuration for the agent."""
 
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="anthropic/claude-3-5-sonnet-20240620",
+        # default="anthropic/claude-3-5-sonnet-20240620",
+        default="openai/gpt-4o",
         metadata={
             "description": "The name of the language model to use for the agent. "
             "Should be in the form: provider/model-name."
@@ -26,7 +27,7 @@ class Configuration:
         default=prompts.MAIN_PROMPT,
         metadata={
             "description": "The main prompt template to use for the agent's interactions. "
-            "Expects two f-string arguments: {info} and {topic}."
+            "Expects three f-string arguments: {startup}, {info}, and {topic}."
         },
     )
 
