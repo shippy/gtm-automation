@@ -10,18 +10,43 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMe
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
+from langgraph.types import Send
 from pydantic import BaseModel, Field
 
 from gtm_automation import prompts
 from gtm_automation.configuration import Configuration
-from gtm_automation.state import InputState, OutputState, State
+from gtm_automation.state import (
+    Industries,
+    IndustryGoToMarketResearch,
+    IndustryPicks,
+    ResearchOutput,
+    StartupDescription,
+)
 from gtm_automation.tools import scrape_website, search
 from gtm_automation.utils import init_model
 
 
+async def branch_out(
+    state: StartupDescription, *, config: Optional[RunnableConfig] = None
+) -> IndustryPicks:
+    """Branch out to a list of industries that the startup should target."""
+    p = prompts.BRANCH_OUT_PROMPT.format(startup=state.startup)
+    model = init_model(config)
+    response = model.with_structured_output(Industries)
+    actual_response = await response.ainvoke(p)
+    return cast(IndustryPicks, actual_response)
+
+async def continue_to_research(state: IndustryPicks, *, config: Optional[RunnableConfig] = None) -> list[Send]:
+    """Pass the specific industry to a research agent."""
+    to_send: list[IndustryGoToMarketResearch] = [
+        IndustryGoToMarketResearch(startup=state.startup, industry=industry)
+        for industry in state.industries if industry
+    ]
+    return [Send("call_agent_model", send) for send in to_send]
+
 async def call_agent_model(
-    state: State, *, config: Optional[RunnableConfig] = None
-) -> Dict[str, Any]:
+    state: IndustryGoToMarketResearch, *, config: Optional[RunnableConfig] = None
+) -> ResearchOutput:
     """Call the primary Language Model (LLM) to decide on the next research action.
 
     This asynchronous function performs the following steps:
@@ -38,12 +63,12 @@ async def call_agent_model(
     info_tool = {
         "name": "Info",
         "description": "Call this when you have gathered all the relevant info",
-        "parameters": state.extraction_schema,
+        "parameters": state.model_json_schema(),
     }
 
     # Format the prompt defined in prompts.py with the extraction schema and topic
     p = configuration.prompt.format(
-        info=json.dumps(state.extraction_schema, indent=2), topic=state.topic
+        info=json.dumps(state.model_json_schema(), indent=2), topic=state.industry, startup=state.startup
     )
 
     # Create the messages list with the formatted prompt and the previous messages
@@ -53,7 +78,6 @@ async def call_agent_model(
     raw_model = init_model(config)
     model = raw_model.bind_tools([scrape_website, search, info_tool], tool_choice="any")
     response = cast(AIMessage, await model.ainvoke(messages))
-
     # Initialize info to None
     info = None
 
@@ -74,13 +98,12 @@ async def call_agent_model(
         response_messages.append(
             HumanMessage(content="Please respond by calling one of the provided tools.")
         )
-    return {
-        "messages": response_messages,
-        "info": info,
-        # Add 1 to the step count
-        "loop_step": 1,
-    }
 
+    return ResearchOutput(
+        startup=state.startup,
+        industry_research=[info] if info else [],
+        loop_step=1,
+    )
 
 class InfoIsSatisfactory(BaseModel):
     """Validate whether the current extracted info is satisfactory and complete."""
@@ -99,7 +122,7 @@ class InfoIsSatisfactory(BaseModel):
 
 
 async def reflect(
-    state: State, *, config: Optional[RunnableConfig] = None
+    state: ResearchOutput, *, config: Optional[RunnableConfig] = None
 ) -> Dict[str, Any]:
     """Validate the quality of the data enrichment agent's output.
 
@@ -112,7 +135,7 @@ async def reflect(
     6. Processes the model's response and determines if the info is satisfactory.
     """
     p = prompts.MAIN_PROMPT.format(
-        info=json.dumps(state.extraction_schema, indent=2), topic=state.topic
+        info=json.dumps(state.model_json_schema(), indent=2), topic=state.startup
     )
     last_message = state.messages[-1]
     if not isinstance(last_message, AIMessage):
@@ -121,7 +144,7 @@ async def reflect(
             f" Got: {type(last_message)}"
         )
     messages = [HumanMessage(content=p)] + state.messages[:-1]
-    presumed_info = state.info
+    presumed_info = state.industry_research[-1].model_dump_json()
     checker_prompt = """I am thinking of calling the info tool with the info below. \
 Is this good? Give your reasoning as well. \
 You can encourage the Assistant to look at specific URLs if that seems relevant, or do more searches.
@@ -161,7 +184,7 @@ If you don't think it is good, you should be very specific about what could be i
 
 
 def route_after_agent(
-    state: State,
+    state: IndustryGoToMarketResearch,
 ) -> Literal["reflect", "tools", "call_agent_model", "__end__"]:
     """Schedule the next node after the agent's action.
 
@@ -187,7 +210,7 @@ def route_after_agent(
 
 
 def route_after_checker(
-    state: State, config: RunnableConfig
+    state: IndustryGoToMarketResearch, config: RunnableConfig
 ) -> Literal["__end__", "call_agent_model"]:
     """Schedule the next node after the checker's evaluation.
 
@@ -195,10 +218,13 @@ def route_after_checker(
     based on the checker's evaluation and the current state of the research.
     """
     configurable = Configuration.from_runnable_config(config)
-    last_message = state.messages[-1]
+    try:
+        last_message = state.messages[-1]
+    except IndexError:
+        raise ValueError(f"{route_after_checker.__name__} expected at least one message in the state.")
 
     if state.loop_step < configurable.max_loops:
-        if not state.info:
+        if not state.specific_steps:
             return "call_agent_model"
         if not isinstance(last_message, ToolMessage):
             raise ValueError(
@@ -215,12 +241,15 @@ def route_after_checker(
 
 # Create the graph
 workflow = StateGraph(
-    State, input=InputState, output=OutputState, config_schema=Configuration
+    ResearchOutput, input=StartupDescription, output=ResearchOutput, config_schema=Configuration
 )
-workflow.add_node(call_agent_model)
-workflow.add_node(reflect)
-workflow.add_node("tools", ToolNode([search, scrape_website]))
-workflow.add_edge("__start__", "call_agent_model")
+workflow.add_node(branch_out, input=IndustryPicks)
+workflow.add_node(call_agent_model, input=IndustryGoToMarketResearch)
+workflow.add_node(reflect, input=ResearchOutput)
+workflow.add_node("tools", ToolNode([search, scrape_website]), input=IndustryGoToMarketResearch)
+
+workflow.add_edge("__start__", "branch_out")
+workflow.add_conditional_edges("branch_out", continue_to_research, ["call_agent_model"])
 workflow.add_conditional_edges("call_agent_model", route_after_agent)
 workflow.add_edge("tools", "call_agent_model")
 workflow.add_conditional_edges("reflect", route_after_checker)
