@@ -10,7 +10,14 @@ from typing import Annotated, Any, List, Optional
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
+from pydantic import BaseModel, Field
 
+
+class IndustryResearch(BaseModel):
+    """Research on a specific industry."""
+    industry: str = Field(description="The industry/sector that the agent is tasked with researching.")
+    activities: list[str] = Field(default_factory=list, description="A list briefly summarizing the key activities that can be automated via templates in the sector")
+    specific_steps: list[str] = Field(default_factory=list, description="Which steps the startup should take to institute a go-to-market strategy")
 
 @dataclass(kw_only=True)
 class InputState:
@@ -19,7 +26,7 @@ class InputState:
     topic: str
     "The topic for which the agent is tasked to gather information."
 
-    extraction_schema: dict[str, Any]
+    extraction_schema: dict[str, Any] = field(default_factory=lambda: IndustryResearch.model_json_schema())
     "The json schema defines the information the agent is tasked with filling out."
 
     info: Optional[dict[str, Any]] = field(default=None)
