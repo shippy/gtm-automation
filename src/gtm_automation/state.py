@@ -40,7 +40,8 @@ class IndustryGoToMarketResearch(BaseModel):
 
 class ResearchOutput(BaseModel):
     """The output of the research agent."""
-    startup: str = Field(description="The description of the startup that the agent is tasked with researching.")
+    startup: Annotated[str, lambda x, _: x] = Field(description="The description of the startup that the agent is tasked with researching.")
+    industries: Annotated[list[str], lambda x, _: x] = Field(description="A list of industries that the startup should target.")
     industry_research: Annotated[list[Any], operator.add] = Field(description="Research on specific industries.")
     messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
     loop_step: Annotated[int, operator.add] = Field(default=0)
