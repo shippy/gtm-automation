@@ -10,7 +10,40 @@ from typing import Annotated, Any, List, Optional
 
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
+from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
+
+class StartupDescription(BaseModel):
+    """The description of the startup that the agent is tasked with researching."""
+    startup: str = Field(description="The description of the startup that the agent is tasked with researching.")
+
+class Industries(BaseModel):
+    """A list of industries that the startup should target."""
+    industries: list[str] = Field(..., description="A list of industries that the startup should target.", min_length=1)
+
+class IndustryPicks(Industries):
+    """A list of industries that the startup should target."""
+    startup: str = Field(description="The description of the startup that the agent is tasked with researching.")
+    industries: list[str] = Field(default_factory=list, description="A list of industries that the startup should target.")
+
+
+class IndustryGoToMarketResearch(BaseModel):
+    """Research on a specific industry."""
+    startup: str = Field(description="The description of the startup that the agent is tasked with researching.")
+    industry: str = Field(description="The industry/sector that the agent is tasked with researching.")
+    activities: list[str] = Field(default_factory=list, description="A list briefly summarizing the key activities that can be automated via templates in the sector")
+    specific_steps: list[str] = Field(default_factory=list, description="Which steps the startup should take to institute a go-to-market strategy")
+    messages: SkipJsonSchema[Annotated[List[BaseMessage], add_messages]] = Field(default_factory=list)
+    loop_step: Annotated[int, operator.add] = Field(default=0)
+
+
+class ResearchOutput(BaseModel):
+    """The output of the research agent."""
+    startup: str = Field(description="The description of the startup that the agent is tasked with researching.")
+    industry_research: Annotated[list[Any], operator.add] = Field(description="Research on specific industries.")
+    messages: Annotated[List[BaseMessage], add_messages] = Field(default_factory=list)
+    loop_step: Annotated[int, operator.add] = Field(default=0)
 
 @dataclass(kw_only=True)
 class InputState:
