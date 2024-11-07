@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "langchain-community>=0.2.13",
     "langgraph-cli>=0.1.52",
+    "pydantic>=2.9.2",
 ]
 
 [project.optional-dependencies]
